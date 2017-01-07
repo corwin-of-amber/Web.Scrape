@@ -1,6 +1,7 @@
 # encoding=utf-8
 import os
 import subprocess
+import shutil
 import lxml.etree
 from urllib2 import Request, HTTPCookieProcessor, build_opener
 from cookielib import MozillaCookieJar
@@ -60,6 +61,7 @@ if __name__ == '__main__':
     import argparse
     a = argparse.ArgumentParser()
     a.add_argument("--page", type=int, nargs='?')
+    a.add_argument("--outdir", nargs='?', default="/Users/corwin/var/workspace/Web.Realtime/apps/crossword/data")
     a = a.parse_args()
 
     ho = HaaretzOnline()
@@ -71,7 +73,8 @@ if __name__ == '__main__':
         if "birman" in page.extract_strings():
             page.save_as("/tmp/birman.swf")
             import images, squares
-            images.extract_and_render_crossword("/tmp/birman.swf")
-            squares.detect_grid_and_output_json("body.png")
+            body, birman = images.extract_and_render_crossword("/tmp/birman.swf")
+            squares.detect_grid_and_output_json(body, os.path.join(a.outdir, 'grid.json'))
+            shutil.copy(birman, os.path.join(a.outdir, 'birman.png'))
             break
 

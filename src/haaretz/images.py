@@ -58,9 +58,18 @@ def extract_and_render_crossword(filename):
     sei = SwfExtractImages(filename)
     
     print sei.images
-    sei.images['PNG'][0].extract("body.png")
+    image_keys = [key for key in ['PNG', 'JPEG'] if sei.images.has_key(key)]
+    exts = {'PNG': 'png', 'JPEG': 'jpg'}
+    if image_keys:
+        key = image_keys[0]
+        body_filename = "body.%s" % exts[key]
+        sei.images[key][0].extract(body_filename)
+    else:
+        raise KeyError, 'no images found'
 
     SwfRender(filename)("birman.png")
+
+    return body_filename, "birman.png"
 
 
 if __name__ == '__main__':
