@@ -12,7 +12,8 @@ import math
 
 # Some magic numbers
 class MagicNumbers:
-    MARGIN_TOP = 49
+    SIZE = 700
+    MARGIN_TOP = 30 #49
 
 
 class FrameBuffer(QWidget):
@@ -29,10 +30,12 @@ class FrameBuffer(QWidget):
 
 class CrosswordBitmap(object):
     
-    def __init__(self, w, h, png_filename="../../output.png"):
+    def __init__(self, w, h, margin_top, png_filename="../../output.png"):
         self.w, self.h = w, h
-        self.margin_top = MagicNumbers.MARGIN_TOP
+        self.margin_top = margin_top
         self.png = QImage(png_filename)
+        if w is None: self.w = self.png.size().width()
+        if h is None: self.h = self.png.size().height()
         if self.png.isNull(): raise IOError, "image not found"
     
     def raster(self, fb):
@@ -44,10 +47,12 @@ class CrosswordBitmap(object):
     def detect_grid(self):
         nrows, ncols = 13, 13                
         cw = [[0] * ncols for _ in xrange(nrows)]
+        w = self.w
+        h = self.h
         for row in xrange(nrows):
             for col in xrange(ncols):
-                x, y = self._trasnform_xy((col * 700 + 350) / 13,
-                                          (row * 700 + 350) / 13)
+                x, y = self._trasnform_xy((col * w + w/2) / 13,
+                                          (row * h + h/2) / 13)
                 is_white = self._bright(self.png.pixel(x, y)) > 0.8
                 cw[row][col] = " " if is_white else "X"
                 
@@ -130,7 +135,7 @@ Style.DEFAULT = Style()
 
 
 def detect_grid_and_output_json(png_filename, json_filename=None):
-    wb = CrosswordBitmap(700, 700, png_filename)
+    wb = CrosswordBitmap(MagicNumbers.SIZE, MagicNumbers.SIZE, MagicNumbers.MARGIN_TOP, png_filename)
 
     cw = wb.detect_grid()
     cw.renumber()
@@ -145,8 +150,14 @@ if __name__ == '__main__':
     import argparse
     a = argparse.ArgumentParser()
     a.add_argument("png-filename")
+    a.add_argument('--size', type=int, nargs='?', default=MagicNumbers.SIZE)
+    a.add_argument('--margin-top', type=int, nargs='?', default=MagicNumbers.MARGIN_TOP)
+    a.add_argument('--cropped', action='store_true')
     a = a.parse_args()
-    wb = CrosswordBitmap(700, 700, getattr(a, 'png-filename'))
+    if a.cropped:
+        a.size = None
+        a.margin_top = 0
+    wb = CrosswordBitmap(a.size, a.size, a.margin_top, png_filename=getattr(a, 'png-filename'))
 
     if 0:
         a = QApplication(sys.argv)

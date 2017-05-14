@@ -58,7 +58,7 @@ def extract_and_render_crossword(filename):
     sei = SwfExtractImages(filename)
     
     print sei.images
-    image_keys = [key for key in ['PNG', 'JPEG'] if sei.images.has_key(key)]
+    image_keys = [key for key in ['JPEG', 'PNG'] if sei.images.has_key(key)]
     exts = {'PNG': 'png', 'JPEG': 'jpg'}
     if image_keys:
         key = image_keys[0]
