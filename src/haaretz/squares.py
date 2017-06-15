@@ -4,8 +4,9 @@ Created on Mar 17, 2014
 @author: corwin
 '''
 import sys
-from PyQt4.QtCore import Qt, QSize
-from PyQt4.QtGui import QApplication, QMainWindow, QWidget, QPainter, QImage, QColor
+#from PyQt4.QtCore import Qt, QSize
+#from PyQt4.QtGui import QApplication, QMainWindow, QWidget, QPainter, QImage, QColor
+import PIL.Image
 from collections import namedtuple
 import math
 
@@ -16,27 +17,15 @@ class MagicNumbers:
     MARGIN_TOP = 30 #49
 
 
-class FrameBuffer(QWidget):
-    
-    def __init__(self, qsize, parent=None):
-        super(FrameBuffer, self).__init__(parent)
-        self.fb = QImage(qsize, QImage.Format_RGB32)
-        self.fb.fill(Qt.white)
-        
-    def paintEvent(self, ev):
-        painter = QPainter(self)
-        painter.drawImage(0, 0, self.fb)
-
 
 class CrosswordBitmap(object):
     
     def __init__(self, w, h, margin_top, png_filename="../../output.png"):
         self.w, self.h = w, h
         self.margin_top = margin_top
-        self.png = QImage(png_filename)
-        if w is None: self.w = self.png.size().width()
-        if h is None: self.h = self.png.size().height()
-        if self.png.isNull(): raise IOError, "image not found"
+        self.png = PIL.Image.open(png_filename)
+        if w is None: self.w = self.png.width
+        if h is None: self.h = self.png.height
     
     def raster(self, fb):
         for x in xrange(self.w):
@@ -46,38 +35,38 @@ class CrosswordBitmap(object):
              
     def detect_grid(self):
         nrows, ncols = 13, 13                
-        cw = [[0] * ncols for _ in xrange(nrows)]
+        cw = [[0] * ncols for _ in range(nrows)]
         w = self.w
         h = self.h
-        for row in xrange(nrows):
-            for col in xrange(ncols):
+        for row in range(nrows):
+            for col in range(ncols):
                 x, y = self._trasnform_xy((col * w + w/2) / 13,
                                           (row * h + h/2) / 13)
-                is_white = self._bright(self.png.pixel(x, y)) > 0.8
+                is_white = self._bright(self.png.getpixel((x, y))) > 0.8
                 cw[row][col] = " " if is_white else "X"
                 
         return CrosswordGrid(cw)
                              
     def _trasnform_xy(self, x, y):
-        return (self.png.width() - (self.w - x),
+        return (self.png.width - (self.w - x),
                 y + self.margin_top)
         
     def _near(self, x, y):
         x, y = self._trasnform_xy(x, y)
-        if self._bright(self.png.pixel(x, y)) > 0.8: return 255/4
+        if self._bright(self.png.getpixel((x, y))) > 0.8: return 255/4
         return 0
         #return int(255*self._bright(self.png.pixel(x, y)))
         w, h = self.png.width(), self.png.height()
         dx, dy = 0, 0
-        while x+dx < w and self._bright(self.png.pixel(x + dx, y)) > 0.8 and \
-              y+dy < h and self._bright(self.png.pixel(x, y + dy)) > 0.8 and dx < 55:
+        while x+dx < w and self._bright(self.png.getpixel((x + dx, y))) > 0.8 and \
+              y+dy < h and self._bright(self.png.getpixel((x, y + dy))) > 0.8 and dx < 55:
             dx += 1 ; dy += 1
             
         return dx
 
     def _bright(self, qc):
-        r, g, b, a = QColor(qc).getRgbF()
-        return math.sqrt((r*r + g*g + b*b) / 3.) * a
+        r, g, b = qc #QColor(qc).getRgbF()
+        return math.sqrt((r*r + g*g + b*b) / 3.)
 
 
 
@@ -105,18 +94,18 @@ class CrosswordGrid(object):
     def output_json(self, out=sys.stdout):
         cw = self.cw
         for r in cw:
-            print >>out, "#", " ".join("%2s" % x for x in r)
+            print("#", " ".join("%2s" % x for x in r), file=out)
 
-        print >>out, "{"
+        print("{", file=out)
 
         fmt = lambda cell: '"x"' if cell == 'X' else cell
 
         for i, row in enumerate(cw):
-            if i > 0: print >>out, ","
-            print >>out, "        %d: {" % (i+1),
-            print >>out, ", ".join("%d: %s" % (j+1, fmt(cell)) for j, cell in enumerate(row)
-                                   if cell != " "), "}",
-        print >>out, "}"
+            if i > 0: print(",", file=out)
+            print("        %d: {" % (i+1), end=' ', file=out)
+            print(", ".join("%d: %s" % (j+1, fmt(cell)) for j, cell in enumerate(row)
+                            if cell != " "), "}", end=' ', file=out)
+        print("}", file=out)
 
 
 class Style(object):
