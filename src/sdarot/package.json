@@ -1,0 +1,11 @@
+{
+  "name": "sdarot",
+  "version": "1.0.0",
+  "description": "",
+  "dependencies": {
+    "got": "^8.1.0",
+    "regexp-quote": "^0.0.0"
+  },
+  "author": "Corwin of Amber",
+  "license": "MIT"
+}
