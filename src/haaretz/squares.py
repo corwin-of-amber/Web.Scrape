@@ -20,7 +20,9 @@ class MagicNumbers:
 
 class CrosswordBitmap(object):
     
-    def __init__(self, w, h, margin_top, png_filename="../../output.png"):
+    def __init__(self, ncols, nrows,
+                 w, h, margin_top, png_filename="../../output.png"):
+        self.ncols, self.nrows = ncols, nrows
         self.w, self.h = w, h
         self.margin_top = margin_top
         self.png = PIL.Image.open(png_filename)
@@ -34,15 +36,19 @@ class CrosswordBitmap(object):
                 fb.setPixel(x, y, QColor(c, c, c).rgb())     
              
     def detect_grid(self):
-        nrows, ncols = 13, 13                
+        nrows, ncols = self.nrows, self.ncols
         cw = [[0] * ncols for _ in range(nrows)]
         w = self.w
         h = self.h
         for row in range(nrows):
             for col in range(ncols):
-                x, y = self._trasnform_xy((col * w + w/2) / 13,
-                                          (row * h + h/2) / 13)
-                is_white = self._bright(self.png.getpixel((x, y))) > 0.8
+                x, y = self._trasnform_xy((col * w + w/2) // ncols,
+                                          (row * h + h/2) // nrows)
+                v = max(self._bright(self.png.getpixel((x+dx, y+dy)))
+                        for dx in [-1,0,1]
+                        for dy in [-1,0,1])
+                #print(row,col,x,y,v)
+                is_white = v > 0.8
                 cw[row][col] = " " if is_white else "X"
                 
         return CrosswordGrid(cw)
@@ -65,7 +71,11 @@ class CrosswordBitmap(object):
         return dx
 
     def _bright(self, qc):
-        r, g, b = qc #QColor(qc).getRgbF()
+        qc = [x/255. for x in qc]  # normalize
+        if len(qc) == 4:  # contains alpha
+          r, g, b, _ = qc #QColor(qc).getRgbF()
+        else:
+          r, g, b = qc #QColor(qc).getRgbF()
         return math.sqrt((r*r + g*g + b*b) / 3.)
 
 
@@ -97,6 +107,7 @@ class CrosswordGrid(object):
             print("#", " ".join("%2s" % x for x in r), file=out)
 
         print("{", file=out)
+        print('        "$": {"nrows": %d, "ncols": %d},' % (len(cw), len(cw[0])), file=out)
 
         fmt = lambda cell: '"x"' if cell == 'X' else cell
 
@@ -123,8 +134,13 @@ class Style(object):
 Style.DEFAULT = Style()
 
 
-def detect_grid_and_output_json(png_filename, json_filename=None):
-    wb = CrosswordBitmap(MagicNumbers.SIZE, MagicNumbers.SIZE, MagicNumbers.MARGIN_TOP, png_filename)
+def detect_grid_and_output_json(png_filename, json_filename=None, is_cropped=False):
+    if is_cropped:
+        size, margin_top = None, 0
+    else:
+        size, margin_top = MagicNumbers.SIZE, MagicNumbers.MARGIN_TOP
+
+    wb = CrosswordBitmap(13, 13, size, size, margin_top, png_filename)
 
     cw = wb.detect_grid()
     cw.renumber()
@@ -140,13 +156,20 @@ if __name__ == '__main__':
     a = argparse.ArgumentParser()
     a.add_argument("png-filename")
     a.add_argument('--size', type=int, nargs='?', default=MagicNumbers.SIZE)
+    a.add_argument('--geom', type=str, nargs='?', default='13')
     a.add_argument('--margin-top', type=int, nargs='?', default=MagicNumbers.MARGIN_TOP)
     a.add_argument('--cropped', action='store_true')
     a = a.parse_args()
     if a.cropped:
         a.size = None
         a.margin_top = 0
-    wb = CrosswordBitmap(a.size, a.size, a.margin_top, png_filename=getattr(a, 'png-filename'))
+    # Parse geom
+    geom = a.geom.split('x')
+    if len(geom) == 2: w, h = map(int, geom)
+    elif len(geom) == 1: w = h = int(geom[0])
+    else: raise RuntimeError("invalid size")
+
+    wb = CrosswordBitmap(w, h, a.size, a.size, a.margin_top, png_filename=getattr(a, 'png-filename'))
 
     if 0:
         a = QApplication(sys.argv)
