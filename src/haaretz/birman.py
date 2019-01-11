@@ -114,27 +114,33 @@ def find_in_premium_content(a):
         href = a_.attrib['href']
         if '/xword/' in href:
             print("Downloading:", href)
-            xword = ho.get_resource(href)
-            for img in lxml.etree.HTML(xword).xpath("//img"):
-                print(img.attrib)
-                title = img.attrib.get('title', None) or \
-                        img.attrib.get('alt', None)
-                if title:
-                    try:
-                        title = bytes(map(ord, title)).decode('utf-8')
-                    except ValueError:
-                        pass
-                    if any(x in title for x in ['תשבץ', 'היגיון', 'בירמן']):
-                        print(title)
-                        if img.attrib.has_key('data-src'):
-                            src = img.attrib['data-src']
-                        else:
-                            src = img.attrib['src']
-                        print(src)
-                        cut(src)
-                        process_images()
-                        break
+            get_from_premium_content(href)
             break
+
+def get_from_premium_content(href):
+    ho = HaaretzOnline()
+
+    xword = ho.get_resource(href)
+    #xword = ho.get_resource("gallery/xword/1.6632795")
+    for img in lxml.etree.HTML(xword).xpath("//img"):
+        print(img.attrib)
+        title = img.attrib.get('title', None) or \
+                img.attrib.get('alt', None)
+        if title:
+            try:
+                title = bytes(map(ord, title)).decode('utf-8')
+            except ValueError:
+                pass
+            if any(x in title for x in ['תשבץ', 'היגיון', 'בירמן']):
+                print(title)
+                if img.attrib.has_key('data-src'):
+                    src = img.attrib['data-src']
+                else:
+                    src = img.attrib['src']
+                print(src)
+                cut(src)
+                process_images()
+                break
 
 def process_images(indir="/tmp", outdir="."):
     import squares
@@ -152,12 +158,19 @@ if __name__ == '__main__':
     import argparse
     a = argparse.ArgumentParser()
     #a.add_argument("--page", type=int, nargs='?') # deprecated
-    a.add_argument("--local", type=str, nargs='?', default=None, help="directory containing cross.png and body.png")
+    a.add_argument("--url-path", type=str, nargs='?', default=None, 
+        help="crossword page path, typically of the form 'gallery/xword/1.XXXX'")
+    a.add_argument("--local", type=str, nargs='?', default=None, 
+        help="directory containing cross.png and body.png")
     a.add_argument("--outdir", nargs='?', default="/Users/corwin/var/workspace/Web.Crossword/data",
             help="directory to write grid.json in (crossword image is also copied there)")
     a = a.parse_args()
 
+    print( a.url_path )
+    
     if a.local:
         process_images(a.local, a.outdir)
+    elif a.url_path:
+        get_from_premium_content(a.url_path)
     else:
         find_in_premium_content(a)
