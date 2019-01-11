@@ -104,7 +104,7 @@ def cut(uri):
         print("Wrote /tmp/body.png.")
 
 
-def find_in_premium_content(a):
+def find_in_premium_content(a, keywords=[]):
     ho = HaaretzOnline()
 
     xword = ho.get_resource("gallery/xword").decode('utf-8')
@@ -113,9 +113,11 @@ def find_in_premium_content(a):
         #print(a_.attrib)
         href = a_.attrib['href']
         if '/xword/' in href:
-            print("Downloading:", href)
-            get_from_premium_content(href)
-            break
+            text = a_.xpath(".//text()")
+            if all(any(kw in s for s in text) for kw in keywords):
+                print("Downloading:", href)
+                #get_from_premium_content(href)
+                break
 
 def get_from_premium_content(href):
     ho = HaaretzOnline()
@@ -159,18 +161,19 @@ if __name__ == '__main__':
     a = argparse.ArgumentParser()
     #a.add_argument("--page", type=int, nargs='?') # deprecated
     a.add_argument("--url-path", type=str, nargs='?', default=None, 
-        help="crossword page path, typically of the form 'gallery/xword/1.XXXX'")
+            help="crossword page path, typically of the form 'gallery/xword/1.XXXX'")
+    a.add_argument("--key", type=str, nargs='?', default=None,
+            help="crossword number to fetch (or any other keyword to look for in title)")
     a.add_argument("--local", type=str, nargs='?', default=None, 
-        help="directory containing cross.png and body.png")
+            help="directory containing cross.png and body.png")
     a.add_argument("--outdir", nargs='?', default="/Users/corwin/var/workspace/Web.Crossword/data",
             help="directory to write grid.json in (crossword image is also copied there)")
     a = a.parse_args()
 
-    print( a.url_path )
-    
     if a.local:
         process_images(a.local, a.outdir)
     elif a.url_path:
         get_from_premium_content(a.url_path)
     else:
-        find_in_premium_content(a)
+        kw = [] if a.key is None else a.key.split(",")
+        find_in_premium_content(a, kw)
