@@ -1,4 +1,3 @@
-got = require 'got'
 {URL} = require 'url'
 cheerio = require 'cheerio'
 db = require './db.ls'
@@ -6,7 +5,7 @@ db = require './db.ls'
 require! request
 
 
-HOST = 'sdarot.pm'
+HOST = 'zira.online'
 IPADDR = '149.202.200.130'
 
 PAGE_URL = new URL("https://#{IPADDR}/watch/")
@@ -26,6 +25,7 @@ fetch-series-page = (series-no) ->
       headers: DEFAULT_HEADERS
       strictSSL: false
     , (error, response, body) ->
+      if response.headers['set-cookie'] then cookie that.0
       if error? then reject error
       else resolve {body}
 
@@ -44,6 +44,10 @@ list-episodes = (series-no) ->
     if (lw = data?last-watched)?
       console.log "#{"    " * lw.episode}*"
 
+cookie = (value) ->
+  value = value.split(';').0
+  db.set-cookie value
+  db.write!
 
 
 if module.id == '.'

@@ -9,28 +9,33 @@ require! request
 require! 'request-progress'
 
 
-HOST = 'sdarot.pm' #zira.online'
+HOST = 'zira.online'
 IPADDR = '149.202.200.130'
 
 WATCH_URL = new URL("https://#{IPADDR}/ajax/watch")
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36"
 
-COOKIE = '_ga=GA1.2.486464997.1518630789; Sdarot=sTpq211CqWVoLzPxyeU5Lbc358RJutZn48XkNHXwfDY1tUQSmASJrm7OzzoiFhbKlU8Au0Td5sVJhBUyi3DDVl4UE1C9YMJeyUk4UDAhOyxeUuhe7gsZdWKjZsQi0MVr; _gid=GA1.2.1224283793.1527699600; _gat=1'
+USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:67.0) Gecko/20100101 Firefox/67.0"
 
-COOKIE2 = '_ga=GA1.2.486464997.1518630789; tu=334cbf0c36171df98ba2cb07e828968c; Sdarot=ISeINhdYxe-nnaTERQLFofbjQY3lxrkLmwWukhts7tTmMMiOuZsifZVPMDAFyltSos4FmYhM4uP8s%2CIKuALTRqA74H7czzHSE4us7DDIRNQLoGBycRARINtOYGc5pXLG; _gid=GA1.2.1821272330.1561915858'
+COOKIE = 'Sdarot=Dql5fOcKxQkw391DrQwQ-nsy6hdvqaX9ySUDd1C9AwTRwy5lHEBpSt7fjcOkOOeAwxJoZwvQXSM85lEfTHEiMGHL2VBGpcdwIi%2CM1NsY1h58JqzYhTcH3hXUb%2CEA5gmy'
+
+if db.get-cookie! then COOKIE = that
+
 
 DEFAULT_HEADERS =
 #      'Host': HOST
       'User-Agent': USER_AGENT
       'Cookie': COOKIE
       'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
-      'Origin': "http://#{WATCH_URL.hostname}"
-      'Referer': "http://#{WATCH_URL.hostname}/watch"
-#      'X-Requested-With': 'XMLHttpRequest'
-#      'Accept': 'application/json, text/javascript, */*; q=0.01'
-#      'Connection': 'keep-alive'
+#      'Origin': "http://#{WATCH_URL.hostname}"
+      'Referer': "https://zira.online/watch/1325-%D7%90%D7%99%D7%A9-%D7%97%D7%A9%D7%95%D7%91-%D7%9E%D7%90%D7%95%D7%93-ish-hashuv-meod/season/2/episode/3"
+      'X-Requested-With': 'XMLHttpRequest'
+      'Accept': 'application/json, text/javascript, */*; q=0.01'
+      'Connection': 'keep-alive'
+#      'Accept-Language: en-US,en;q=0.5'
 #      'Accept-Encoding': 'gzip, deflate'
+      'TE': 'Trailers'
 
 VID_HEADERS =
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3'
@@ -50,6 +55,7 @@ invoke = (qstring) ->
       strictSSL: false
       body: qstring
     , (error, response, body) ->
+      console.log response.headers
       if error? then reject error
       else resolve {body}
   /*
@@ -86,7 +92,7 @@ get-token = (series-id, season-no, episode-no) ->
     it.body
 
 get-vid = (series-id, season-no, episode-no, token) ->
-  q-watch = "watch=true&token=#{token}&serie=#{series-id}&season=#{season-no}&" + \
+  q-watch = "watch=false&token=#{token}&serie=#{series-id}&season=#{season-no}&" + \
             "episode=#{episode-no}&type=episode"
 
   invoke q-watch .then ->
@@ -123,8 +129,9 @@ download-episode = (series-id, season-no, episode-no, existing-token) ->
       get-token series-id, season-no, episode-no .then ->
         token = it
         console.log "Token: #token"
-        #dotted-delay 30000 .then -> token
+        #dotted-delay 35000 .then -> token
         token
+
 
   delayed-retries ->
       #do ->
@@ -180,7 +187,7 @@ if module.id == '.'
   token = args.0
 
   #download-episode l("oto"), 1, 6, token
-  download-episode l("ish"), 2, 2, token
+  download-episode l("ish"), 2, 3, token
   #download-episode l("cond"), 1, 10, token
 
   #url = new URL('https://voldemort.sdarot.pm/w/episode/480/245754.mp4?token=tHGq336YrQiN24MfcvLUIQ&time=1561931427&uid=')
