@@ -2,6 +2,7 @@
 import os
 import subprocess
 import shutil
+import re
 import lxml.etree
 
 try:
@@ -16,11 +17,13 @@ try:
 except ImportError:
     from http.cookiejar import MozillaCookieJar
 
+import config
+
 
 
 class HaaretzOnline(object):
     
-    DOMAIN = "http://haaretz.co.il"
+    DOMAIN = "https://haaretz.co.il"
     PRINTED_VERSION_URL = "http://www.haaretz.co.il/st/inter/Global/dailyedition/today/"
     PRINTED_VERSION_TOC_URL = PRINTED_VERSION_URL + "data/pages.xml"
     PRINTED_VERSION_PAGES_ROOT_URL = PRINTED_VERSION_URL + "content/vector/"
@@ -40,16 +43,19 @@ class HaaretzOnline(object):
             open(filename, "wb").write(self.contents)
 
     def __init__(self):
-        import dumpsafaricookies
+        #import dumpsafaricookies
         with open("/tmp/cookies.txt", "w") as cookies_txt:
-            cookies_txt.write(dumpsafaricookies.get_cookiefile_for_url(self.DOMAIN))
-        cookie_jar = MozillaCookieJar(cookies_txt.name)
-        cookie_jar.load()
-        self.opener = build_opener(HTTPCookieProcessor(cookie_jar))
+            pass #cookies_txt.write(dumpsafaricookies.get_cookiefile_for_url(self.DOMAIN))
+        #cookie_jar = MozillaCookieJar(cookies_txt.name)
+        #cookie_jar.load()
+        self.opener = build_opener() #HTTPCookieProcessor(cookie_jar))
 
     def get_resource(self, path):
-        r = Request(url="%s/%s" % (self.DOMAIN, path))
-        return self.opener.open(r).read()
+        r = Request(url="%s/%s" % (self.DOMAIN, path), headers={'Cookie': config.COOKIE})
+        print("GET", r.full_url, end=" ", flush=True)
+        o = self.opener.open(r)
+        print(o.getcode())
+        return o.read()
 
     def get_toc(self):
         r = Request(url=self.PRINTED_VERSION_TOC_URL)
@@ -99,9 +105,11 @@ def cut(uri):
 
     if not body:
         print("(body not found.)")
+        return False
     else:
         body.save("/tmp/body.png")
         print("Wrote /tmp/body.png.")
+        return True
 
 
 def find_in_premium_content(a, keywords=[]):
@@ -115,17 +123,19 @@ def find_in_premium_content(a, keywords=[]):
         if '/xword/' in href:
             text = a_.xpath(".//text()")
             if all(any(kw in s for s in text) for kw in keywords):
-                print("Downloading:", href)
-                #get_from_premium_content(href)
+                print(''.join(text))
+                get_from_premium_content(href)
                 break
 
 def get_from_premium_content(href):
     ho = HaaretzOnline()
 
     xword = ho.get_resource(href)
-    #xword = ho.get_resource("gallery/xword/1.6632795")
+
+    with open('/tmp/f.html', 'w') as f:
+        f.write(xword.decode('utf-8'))
+
     for img in lxml.etree.HTML(xword).xpath("//img"):
-        print(img.attrib)
         title = img.attrib.get('title', None) or \
                 img.attrib.get('alt', None)
         if title:
@@ -135,14 +145,20 @@ def get_from_premium_content(href):
                 pass
             if any(x in title for x in ['תשבץ', 'היגיון', 'בירמן']):
                 print(title)
+                src = None
                 if img.attrib.has_key('data-src'):
                     src = img.attrib['data-src']
-                else:
+                elif img.attrib.has_key('srcset'):
+                    srcset = img.attrib['srcset']
+                    for (url, sz) in re.findall(r"(\S+) (\d+)w,?", srcset):
+                        if int(sz) <= 1920:
+                            src = url
+                if not src:
                     src = img.attrib['src']
                 print(src)
-                cut(src)
-                process_images()
-                break
+                if cut(src):
+                    process_images()
+                    break
 
 def process_images(indir="/tmp", outdir="."):
     import squares
