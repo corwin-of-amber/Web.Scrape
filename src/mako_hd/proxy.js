@@ -17,7 +17,7 @@ function truncate(str) {
 
 function logRequest(req) {
     console.log(req.method + ' ' + truncate(req.url) + ' [' + req.headers.host + ']');
-    if (/entitlements|makostore-/.exec(req.url)) { 
+    if (/entitlements|makostore-|nana10-hdv-/.exec(req.url)) { 
         for (var i in req.headers)
             console.log(' * ' + i + ': ' + truncate(req.headers[i]));
         // As curl
@@ -39,7 +39,7 @@ function logRequest(req) {
             fs.writeFileSync("/tmp/req.json", JSON.stringify(req));
         }
     }
-    if (/[/](chunklist_b2200000|index_2_av)\.m3u8/.exec(req.url)) {
+    if (/[/](chunklist_b2200000|chunklist_b1000000|index_2_av)\.m3u8/.exec(req.url)) {
         req = {url: req.url, headers: req.headers};
         fs.writeFileSync("./chunklist.json", JSON.stringify(req));
     }
@@ -70,7 +70,7 @@ var server = http.createServer(function (req, res) {
   if (/isAbroad/.exec(req.url)) {
     res.write("0"); res.end();
   }
-  else if (true || /entitlementsServices/.exec(req.url)) {
+  else if (false && /entitlementsServices/.exec(req.url)) {
     secondaryProxy(req, res);
   }
   else {
@@ -86,7 +86,6 @@ var server = http.createServer(function (req, res) {
 
 function secondaryProxy(req, res) {
     req.headers['Host'] = "mass.mako.co.il";
-    //console.log(req);
 
     host = "localhost"; port = 8070;
 
@@ -98,16 +97,12 @@ function secondaryProxy(req, res) {
         headers: req.headers
     };
     var post_req = http.request(options, function(_res) {
-            //console.log(res);
             Object.entries(_res.headers).forEach(([k,v]) => {
                 res.setHeader(k, v);
             });
-//            res.headers = _res.headers;
             _res.pipe(res);
             });
     req.pipe(post_req);
-    //post_req.write(req.data);
-    //post_req.end();
 }
 
 // when a CONNECT request comes in, the 'upgrade'
