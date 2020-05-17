@@ -1,0 +1,7 @@
+{
+    "name": "mako-hd",
+    "dependencies": {
+        "mkdirp": "^1.0.4",
+        "yargs": "^15.3.1"
+    }
+}
