@@ -9,7 +9,7 @@ require! request
 require! 'request-progress'
 
 
-HOST = 'zira.online'
+HOST = 'sdarot.tv'
 IPADDR = '149.202.200.130'
 
 WATCH_URL = new URL("https://#{IPADDR}/ajax/watch")
@@ -20,6 +20,8 @@ USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:67.0) Gecko/20100
 
 COOKIE = 'Sdarot=Dql5fOcKxQkw391DrQwQ-nsy6hdvqaX9ySUDd1C9AwTRwy5lHEBpSt7fjcOkOOeAwxJoZwvQXSM85lEfTHEiMGHL2VBGpcdwIi%2CM1NsY1h58JqzYhTcH3hXUb%2CEA5gmy'
 
+CTOKEN_FILENAME = '/tmp/Web.Meddler/watch.body.json'
+
 if db.get-cookie! then COOKIE = that
 
 
@@ -29,7 +31,7 @@ DEFAULT_HEADERS =
       'Cookie': COOKIE
       'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
 #      'Origin': "http://#{WATCH_URL.hostname}"
-      'Referer': "https://zira.online/watch/1325-%D7%90%D7%99%D7%A9-%D7%97%D7%A9%D7%95%D7%91-%D7%9E%D7%90%D7%95%D7%93-ish-hashuv-meod/season/2/episode/3"
+      'Referer': "https://#{HOST}/watch/1325-%D7%90%D7%99%D7%A9-%D7%97%D7%A9%D7%95%D7%91-%D7%9E%D7%90%D7%95%D7%93-ish-hashuv-meod/season/2/episode/3"
       'X-Requested-With': 'XMLHttpRequest'
       'Accept': 'application/json, text/javascript, */*; q=0.01'
       'Connection': 'keep-alive'
@@ -55,9 +57,10 @@ invoke = (qstring) ->
       strictSSL: false
       body: qstring
     , (error, response, body) ->
-      console.log response.headers
       if error? then reject error
-      else resolve {body}
+      else 
+        update-cookie(response)
+        resolve {body}
   /*
   got do
     host: HOST # WATCH_URL.hostname
@@ -84,30 +87,51 @@ download-file = (url, filename) ->
       ..on \error -> reject it
 
 
+update-cookie = (response) ->
+  if response.headers['set-cookie']
+    cookie = that[0].split(';')[0]
+    COOKIE := DEFAULT_HEADERS['Cookie'] = cookie
+    db.set-cookie cookie
+    db.write!
+
 
 get-token = (series-id, season-no, episode-no) ->
-  q-prewatch = "preWatch=true&SID=#{series-id}&season=#{season-no}&ep=#{episode-no}"
+  ctoken = get-ctoken!
+  console.log ctoken
+  q-prewatch = "preWatch=true&SID=#{series-id}&season=#{season-no}&ep=#{episode-no}&ctoken=#{ctoken[0]}"
 
   invoke q-prewatch .then ->
     it.body
+      if ..startsWith('03A') then throw new Error("bad token #{..}")
+
+get-ctoken = ->
+  json = JSON.parse(fs.readFileSync(CTOKEN_FILENAME))
+  json.requestBody.formData['ctoken']
 
 get-vid = (series-id, season-no, episode-no, token) ->
-  q-watch = "watch=false&token=#{token}&serie=#{series-id}&season=#{season-no}&" + \
+  q-vast = "vast=true"
+  invoke q-vast .then ->
+    console.log it.body
+
+    q-watch = "watch=true&token=#{token}&serie=#{series-id}&season=#{season-no}&" + \
             "episode=#{episode-no}&type=episode"
 
-  invoke q-watch .then ->
-    JSON.parse it.body
+    invoke q-watch .then ->
+      JSON.parse it.body
 
-get-url = (vid) ->
-  # at this point, vid.url is actually a hostname
-  # resolve it using dns.resolve (to bypass dns blocks)
-  dns-resolve-promise vid.url
+get-url = (series-id, vid) ->
+  # at this point, vid.watch is //hostname/...
+  # resolve hostname using dns.resolve (to bypass dns blocks)
+  u = new URL("https:#{vid.watch['480']}")
+  dns-resolve-promise u.hostname
   .then ([ipaddr]) ->
       console.log ipaddr
-      for k, v of vid.watch
-        url = new URL("https://#{ipaddr}/w/episode/#{k}/#{vid.VID}.mp4" +
-                      "?token=#{v}&time=#{vid.time}&uid=")
-      url
+      u.hostname = ipaddr
+      u
+#      for k, v of vid.watch
+#        url = new URL("https://#{ipaddr}/w/episode/#{series-id}/#{k}/#{vid.VID}.mp4" +
+#                      "?token=#{v}&time=#{vid.time}&uid=")
+#      url
 
 dns-resolve-promise = (hostname) ->
   new Promise (resolve, reject) ->
@@ -134,30 +158,30 @@ download-episode = (series-id, season-no, episode-no, existing-token) ->
 
 
   delayed-retries ->
-      #do ->
-      get-token-res.then (token) ->
-        get-vid series-id, season-no, episode-no, token .then ->
-          console.log it
-          if it.url?
-            get-url it .then (url) ->
-              if url?
-                download-file url, "/tmp/#{mk-filename series-id, season-no, episode-no}"
-            .catch -> console.error it
-          else
-              Promise.reject!
+    #do ->
+    get-token-res.then (token) ->
+      get-vid series-id, season-no, episode-no, token .then ->
+        console.log it
+        if it.watch?
+          get-url series-id, it .then (url) ->
+            if url?
+              download-file url, "/tmp/#{mk-filename series-id, season-no, episode-no}"
+          .catch -> console.error it
+        else
+            Promise.reject!
 
 
 
-delayed-retries = (attempt, interval=5000, timeout=40000) ->
+delayed-retries = (attempt, interval=4000, timeout=40000) ->
   start-time = Date.now();
   new Promise (resolve, reject) ->
-      f = ->
-          if Date.now() - start-time > timeout then reject!
-          else
-              attempt!then resolve
-              .catch -> setTimeout f, interval
+    f = ->
+      if Date.now() - start-time > timeout then reject!
+      else
+        attempt!then resolve
+        .catch -> if it then reject it else setTimeout f, interval
 
-      f!
+    f!
 
 dotted-delay = (total, interval=5000) ->
   new Promise (resolve, reject) ->
@@ -176,7 +200,21 @@ chain-actions = (actions) ->
 
 
 
-if module.id == '.'
+main = ->
+  require! commander
+  opts = commander
+    ..usage '<programme> [options]'
+    ..option '-s, --season [num]'  'season number'
+    ..option '-e, --episode [num]' 'episode number'
+    .parse process.argv[1 to]
+
+  series-name = opts.args[0]
+  season = if opts.season? then +opts.season else 1
+  episode = if opts.episode? then +opts.episode else 1
+
+  if !series-name
+    opts.outputHelp!; return
+
   dns = require 'dns'
   dns.setServers ['8.8.8.8']
 
@@ -184,11 +222,14 @@ if module.id == '.'
 
   args = process.argv[3 to]
 
-  token = args.0
+  token = void
 
-  #download-episode l("oto"), 1, 6, token
-  download-episode l("ish"), 2, 3, token
-  #download-episode l("cond"), 1, 10, token
+  download-episode l(series-name), season, episode, token
+  .catch -> console.error it
+  #download-episode l("fifty"), 1, 8, token
+  #download-episode l("ish"), 2, 4, token
 
-  #url = new URL('https://voldemort.sdarot.pm/w/episode/480/245754.mp4?token=tHGq336YrQiN24MfcvLUIQ&time=1561931427&uid=')
-  #download-file url, '/tmp/a'
+
+
+if module.id == '.'
+    main!

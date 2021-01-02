@@ -1,11 +1,14 @@
 require! fs
+require! path
 RegExp.quote = require 'regexp-quote'
 
 
 
-read = -> JSON.parse(fs.readFileSync('db.json', 'utf-8'))
+DBJSON = path.join(__dirname, 'db.json')
+
+read = -> JSON.parse(fs.readFileSync(DBJSON, 'utf-8'))
 write = (db_=db) ->
-  fs.writeFileSync 'db.json', JSON.stringify(db, , 2)
+  fs.writeFileSync DBJSON, JSON.stringify(db, , 2)
 
 
 db = read!
@@ -31,6 +34,14 @@ queries =
     for entry in db.series
       if code ~= entry[0] then entry[2] = data ; return
     throw new Error("no series code #{code}")
+
+  set-last-watched: (code, {season, episode}) ->
+    series-data = queries.get-series-data(code) ? {}
+    series-data.last-watched ||= {}
+      if season? then ..season = season
+      else ..season ||= 1
+      ..episode = episode
+    queries.set-series-data code, series-data
 
   get-cookie: ->
     if db.cookie then db.cookie.value
