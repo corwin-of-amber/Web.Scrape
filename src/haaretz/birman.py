@@ -1,4 +1,11 @@
 # encoding=utf-8
+
+# Prerequisites:
+# - lxml (port install py38-lxml)
+# - PIL (port install py38-Pillow)
+# - cv2 (pip install opencv-python)
+# - pyscreeze (pip install pyscreeze)
+
 import os
 import subprocess
 import shutil
@@ -130,6 +137,8 @@ def find_in_premium_content(a, keywords=[]):
 def get_from_premium_content(href):
     ho = HaaretzOnline()
 
+    if '/' not in href: href = 'gallery/xword/.premium-MAGAZINE-' + href
+ 
     xword = ho.get_resource(href)
 
     with open('/tmp/f.html', 'w') as f:
@@ -155,6 +164,7 @@ def get_from_premium_content(href):
                             src = url
                 if not src:
                     src = img.attrib['src']
+                src = re.sub(r'&(height|width)=\d+', '', src)
                 print(src)
                 if cut(src):
                     process_images()

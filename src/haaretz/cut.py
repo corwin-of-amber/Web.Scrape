@@ -16,6 +16,7 @@ def open_uri(uri):
         mo = re.match('(.*)_gen/derivative', uri)
         if mo: uri = mo.group(1)
         uri = re.sub('/w_.*?/', '/', uri)
+        uri = re.sub(',[hw]_\d+', '', uri)
         document = WebDocument(uri)
     else:
         document = FileDocument(uri, encoding=FileDocument.ENCODING_BINARY)
