@@ -4,7 +4,7 @@
   "description": "",
   "dependencies": {
     "cheerio": "^1.0.0-rc.2",
-    "commander": "^2.20.0",
+    "commander": "^9.3.0",
     "regexp-quote": "^0.0.0",
     "request": "^2.88.0",
     "request-progress": "^3.0.0"

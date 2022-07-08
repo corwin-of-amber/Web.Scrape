@@ -27,7 +27,7 @@ queries =
 
   get-series-data: (code) ->
     for [code_, name, data] in db.series
-      if code ~= code_ then return data ? {}
+      if code ~= code_ then return {name, ...data}
     throw new Error("no series code #{code}")
 
   set-series-data: (code, data) ->
